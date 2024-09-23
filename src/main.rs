@@ -1,9 +1,15 @@
+mod table;
+use table::{
+    TableData
+};
+
 use eframe::{egui, App, Frame};
+use egui::mutex::Mutex;
 use futures::stream::SplitSink;
 use tokio::{runtime::Runtime, sync::mpsc, task};
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 use futures_util::{StreamExt, SinkExt};
-use std::sync::mpsc::Sender;
+use std::sync::{mpsc::Sender, Arc};
 use url::Url;
 use ewebsock::{self, WsReceiver, WsSender};
 use serde::{Deserialize, Serialize};
@@ -16,11 +22,25 @@ struct SendMessage {
     data: Option<serde_json::Value>,
 }
 #[derive(Deserialize, Debug, Serialize)]
-struct ReceiveMessage {
-    status: String,
-    message: String,
+#[serde(rename_all = "lowercase")]
+enum DatabaseTable {
+    Equipment
 }
-struct MyApp {
+#[derive(Deserialize, Debug, Serialize)]
+#[serde(rename_all = "lowercase")]
+enum Operation {
+    Inialize,
+    Update
+}
+#[derive(Deserialize, Debug, Serialize)]
+struct ReceiveMessage {
+    table_name: DatabaseTable,
+    operation: Operation,
+    status_code: String,
+    data: String,
+}
+struct FrontdeskApp {
+    data: Option<TableData>,
     rx: tokio::sync::mpsc::Receiver<String>,
     tx: tokio::sync::mpsc::Sender<String>,
     messages: Vec<String>,
@@ -28,24 +48,22 @@ struct MyApp {
     receiver: WsReceiver,
 }
 
-impl MyApp {
+impl FrontdeskApp {
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        
         let (tx, rx) = tokio::sync::mpsc::channel(32);
         
-        //std::thread::spawn(move || {
-        //    let runtime = Runtime::new().unwrap();
-        //    runtime.block_on(async {
-        //        if let Err(e) = connect_to_websocket("".to_string//()).await {
-        //            eprintln!("WebSocket connection error: {}", e);
-        //        }
-        //    });
-        //});
-        
         let options = ewebsock::Options::default();
-        let (sender, receiver) = ewebsock::connect("ws://127.0.0.15:8080", options).unwrap();
+        let (mut sender, receiver) = ewebsock::connect("ws://127.0.0.15:8080", options).unwrap();
 
-        MyApp {
+        let request_json = serde_json::to_string(&SendMessage {
+            level: "frontdesk".to_string(),
+            method: "initial".to_string(),
+            data: Some(json!({"content": "Hello from button('Send Message')!"})),
+        }).unwrap();
+        sender.send(ewebsock::WsMessage::Text(request_json));
+
+        FrontdeskApp {
+            data: None,
             rx,
             tx,
             messages: vec![],
@@ -56,78 +74,87 @@ impl MyApp {
     
 }
 
-impl App for MyApp {
+impl App for FrontdeskApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        while let Ok(msg) = self.rx.try_recv() {
+        if let Some(msg) = self.receiver.try_recv() {
             println!("Ok(msg): {:?}", msg);
-        }
+            match msg {
+                ewebsock::WsEvent::Opened => {
+                    
+                },
+                ewebsock::WsEvent::Message(text) => {
+                    println!("text: {:?}", text);
+                    match text {
+                        ewebsock::WsMessage::Binary(vec) => todo!(),
+                        ewebsock::WsMessage::Text(text) => {
+                            match serde_json::from_str::<ReceiveMessage>(&text) {
+                                Ok(message) => {
+                                    println!("message: {:?}", message);
+                                    match (message.table_name, message.operation) {
+                                        (DatabaseTable::Equipment, Operation::Inialize) => {
+                                            if let Some(data) = &self.data {
+                                                println!("date.initialize()");
+                                                data.initialize(message.data, DatabaseTable::Equipment);
+                                            } else {
+                                                
+                                            }
+                                        },
+                                        (DatabaseTable::Equipment, Operation::Update) => {
+                                            if let Some(data) = &self.data {
+                                                println!("date.update()");
+                                                data.update(message.data, DatabaseTable::Equipment)
+                                            }
+                                        },
+                                    }
+                                },
+                                Err(_) => {
+                                    
+                                },
+                            }
+                        },
+                        ewebsock::WsMessage::Unknown(_) => todo!(),
+                        ewebsock::WsMessage::Ping(vec) => todo!(),
+                        ewebsock::WsMessage::Pong(vec) => todo!(),
+                    }
+                },
+                ewebsock::WsEvent::Error(_) => {
+                    let options = ewebsock::Options::default();
+                    let (mut sender, receiver) = ewebsock::connect("ws://127.0.0.15:8080", options).unwrap();
+            
+                    let request_json = serde_json::to_string(&SendMessage {
+                        level: "frontdesk".to_string(),
+                        method: "initial".to_string(),
+                        data: Some(json!({"content": "Hello from button('Send Message')!"})),
+                    }).unwrap();
+                    sender.send(ewebsock::WsMessage::Text(request_json));
 
+                    self.sender = sender;
+                    self.receiver = receiver;
+                },
+                ewebsock::WsEvent::Closed => {
+
+                },
+            }
+        }
+        
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.label("WebSocket Messages:");
             for msg in &self.messages {
                 ui.label(msg);
             }
-
+            
             if ui.button("Send Message").clicked() {
                 println!("button clicked");
-                let tx = self.tx.clone();
-                let request = SendMessage {
-                    level: "frontdesk".to_string(),
-                    method: "initial".to_string(),
-                    data: Some(json!({"content": "Hello from button('Send Message')!"})),
-                };
-            
-                let request_json = serde_json::to_string(&request).unwrap();
-                self.sender.send(ewebsock::WsMessage::Text(request_json));
             }
         });
     }
-}
-
-async fn connect_to_websocket(msg: String) -> Result<(), Box<dyn std::error::Error>> {
-    println!("connect_to_websocket()");
-    let url = "ws://127.0.0.15:8080";
-    let (ws_stream, _) = connect_async(url).await.expect("Failed to connect");
-    
-    let (mut write, mut read) = ws_stream.split();
-
-    let request: SendMessage = SendMessage {
-        level: "frontdesk".to_string(),
-        method: "initial".to_string(),
-        data: Some(json!({"content": "Hello from connect_to_websocket()!"})),
-    }; 
-
-    let request_json = serde_json::to_string(&request).unwrap();
-
-    write.send(Message::Text(request_json)).await?;
-
-    while let Some(msg) = read.next().await {
-        match msg {
-            Ok(msg) => {
-                if let Ok(text) = msg.to_text() {
-                    match serde_json::from_str::<ReceiveMessage>(text) {
-                        Ok(parsed_message) => {
-                            println!("Parsed message: {:?}", parsed_message);
-                        }
-                        Err(e) => {
-                            eprintln!("Failed to parse message: {:?}", e);
-                        }
-                    }
-                }
-            }
-            Err(e) => {
-                eprintln!("Error receiving message: {:?}", e);
-            }
-        }
-    }
-    Ok(())
 }
 
 #[tokio::main]
 async fn main() {
     let native_options = eframe::NativeOptions::default();
     let _ = eframe::run_native("FRONT DESK", native_options, Box::new(|cc| {
-        let app = MyApp::new(cc);
+        let app = FrontdeskApp::new(cc);
         Ok(Box::new(app))
     }));
 }
