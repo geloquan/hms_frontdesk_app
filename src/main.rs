@@ -1,4 +1,5 @@
 mod table;
+use database::table::OperationStatus;
 use table::{
     TableData
 };
@@ -26,7 +27,19 @@ struct SendMessage {
 #[derive(Deserialize, Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
 enum DatabaseTable {
-    Equipment
+    Equipment,
+    Room,
+    Tool,
+    Staff,
+    ToolReservation,
+    ToolDesignatedRoom,
+    ToolInspector,
+    Patient,
+    Operation,
+    PatientWardRoom,
+    PatientWardAssistant,
+    OperationStaff,
+    OperationTool
 }
 #[derive(Deserialize, Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -172,19 +185,19 @@ impl App for FrontdeskApp {
                             match serde_json::from_str::<ReceiveMessage>(&text) {
                                 Ok(message) => {
                                     println!("message: {:?}", message);
-                                    match (message.table_name, message.operation) {
-                                        (DatabaseTable::Equipment, Operation::Initialize) => {
+                                    match message.operation {
+                                        Operation::Initialize => {
                                             if let Some(data) = &mut self.data {
                                                 println!("message.data: {:?}", message.data);
-                                                data.initialize(message.data, DatabaseTable::Equipment);
+                                                data.initialize(message.data);
                                             } else {
                                                 println!("message.data: {:?}", message.data);
                                                 let mut new_table_data = TableData::new();
-                                                new_table_data.initialize(message.data, DatabaseTable::Equipment);
+                                                new_table_data.initialize(message.data);
                                                 self.data = Some(new_table_data);
                                             }
                                         },
-                                        (DatabaseTable::Equipment, Operation::Update) => {
+                                        Operation::Update => {
                                             if let Some(data) = &self.data {
                                                 println!("date.update()");
                                                 data.update(message.data, DatabaseTable::Equipment)
@@ -285,28 +298,28 @@ impl App for FrontdeskApp {
                             .body(|mut body| {
                                 if let Some(table_data) = &self.data {
                                     let rows = table_data.equipment.read().unwrap();
-                                    for content in &*rows {
-                                        if content.status.clone().unwrap() != "in-progress" {
-                                            continue;
-                                        }
-                                        body.row(30.0, |mut row| {
-                                            row.col(|ui| {
-                                                ui.label(content.label.clone().unwrap_or_default());
-                                            });
-                                            row.col(|ui| {
-                                                ui.label(content.patient_full_name.clone().unwrap_or_default());
-                                            });
-                                            row.col(|ui| {
-                                                ui.label(content.room_name.clone().unwrap_or_default());
-                                            });
-                                            row.col(|ui| {
-                                                ui.label(format_date(&content.start_time.clone().unwrap_or_default()));
-                                            });
-                                            row.col(|ui| {
-                                                ui.label(format_date(&content.end_time.clone().unwrap_or_default()));
-                                            });
-                                        });
-                                    }
+                                    //for content in &*rows {
+                                    //    if content.status.clone().unwrap() != "in-progress" {
+                                    //        continue;
+                                    //    }
+                                    //    body.row(30.0, |mut row| {
+                                    //        row.col(|ui| {
+                                    //            ui.label(content.label.clone().unwrap_or_default());
+                                    //        });
+                                    //        row.col(|ui| {
+                                    //            ui.label(content.patient_full_name.clone().unwrap_or_default());
+                                    //        });
+                                    //        row.col(|ui| {
+                                    //            ui.label(content.room_name.clone().unwrap_or_default());
+                                    //        });
+                                    //        row.col(|ui| {
+                                    //            ui.label(format_date(&content.start_time.clone().unwrap_or_default()));
+                                    //        });
+                                    //        row.col(|ui| {
+                                    //            ui.label(format_date(&content.end_time.clone().unwrap_or_default()));
+                                    //        });
+                                    //    });
+                                    //}
                                 }
                             });
                     });
@@ -346,32 +359,34 @@ impl App for FrontdeskApp {
                             })
 
                             .body(|mut body| {
-                                if let Some(table_data) = &self.data {
-                                    let rows = table_data.equipment.read().unwrap();
-                                    for content in &*rows {
-                                        if content.status.clone().unwrap() != "pre-operative" {
+                                if let Some(table_data) = &mut self.data {
+                                    let sample_query = table_data.query();
+                                    println!("sample_query{:?}", sample_query);
+
+                                    for content in sample_query {
+                                        if content.op_status.clone() != OperationStatus::PreOperative {
                                             continue;
                                         }
                                         let date_color = date_code(
-                                            &content.start_time.clone().unwrap_or_default(),
-                                            &content.end_time.clone().unwrap_or_default()
+                                            &content.start_time.clone(),
+                                            &content.end_time.clone()
                                         );
                                         body.row(30.0, |mut row| {
                                             row.col(|ui| {
-                                                ui.label(content.label.clone().unwrap_or_default());
+                                                ui.label(content.op_label.clone());
                                             });
                                             row.col(|ui| {
-                                                ui.label(content.patient_full_name.clone().unwrap_or_default());
+                                                ui.label(content.patient_full_name.clone());
                                             });
                                             row.col(|ui| {
-                                                ui.label(content.room_name.clone().unwrap_or_default());
+                                                ui.label(content.room_name.clone());
                                             });
                                             row.col(|ui| {
-                                                let text = RichText::new(format_date(&content.start_time.clone().unwrap_or_default())).color(date_color);
+                                                let text = RichText::new(format_date(&content.start_time.clone())).color(date_color);
                                                 ui.label(text);
                                             });
                                             row.col(|ui| {
-                                                let text = RichText::new(format_date(&content.end_time.clone().unwrap_or_default())).color(date_color);
+                                                let text = RichText::new(format_date(&content.end_time.clone())).color(date_color);
                                                 ui.label(text);
                                             });
                                         });
