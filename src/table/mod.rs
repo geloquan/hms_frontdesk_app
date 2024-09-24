@@ -166,15 +166,6 @@ impl TableData {
         self.patient_ward_assistant = Arc::new(RwLock::new(raw_table.patient_ward_assistant.clone()));
         self.operation_staff = Arc::new(RwLock::new(raw_table.operation_staff.clone()));
         self.operation_tool = Arc::new(RwLock::new(raw_table.operation_tool.clone()));
-
-        //match database_table {
-        //    DatabaseTable::Equipment => {
-        //        println!("raw_string: {:?}", raw_string);
-        //        let equipment_rows: Vec<database::table::Equipment> = serde_json::from_str(&raw_string).expect("parse error");
-        //        println!("after equipment_rows");
-        //        self.equipment = Arc::new(RwLock::new(equipment_rows));
-        //    }
-        //}
     }
     pub fn update(&self, raw_string: String, database_table: DatabaseTable) {
         match serde_json::from_str::<UpdateEquipmentRow>(&raw_string) {
