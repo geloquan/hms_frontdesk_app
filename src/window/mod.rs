@@ -1,4 +1,4 @@
-use crate::table::query_return::{self, *};
+use crate::{database, table::query_return::{self, *}};
 
 pub enum CentralWindowEnum {
     InProgress,
@@ -29,6 +29,20 @@ impl CentralWindow {
                 } else {
                     None
                 }
+            }
+        }
+    }
+    pub fn unsupport_scope(&mut self, database_table: CentralWindowEnum) {
+        match database_table {
+            CentralWindowEnum::InProgress => {
+                self.in_progress.enable_scope = false;
+                self.in_progress.id_reference = None;
+                self.in_progress.scope = None;
+            },
+            CentralWindowEnum::PreOperative => {
+                self.pre_operative.enable_scope = false;
+                self.pre_operative.id_reference = None;
+                self.pre_operative.scope = None;
             }
         }
     }

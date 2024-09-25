@@ -4,10 +4,13 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use update::UpdateEquipmentRow;
 
+use egui::{Label, RichText, Sense, Ui};
+use egui_extras::{TableBuilder, Column};
+
 mod update;
 pub mod query_return;
 
-use crate::{database::{self, table::{self, *}}, DatabaseTable};
+use crate::{database::{self, table::{self, *}}, date_code, format_date, window::PreOperativeScopeWindow, DatabaseTable};
 
 #[derive(Deserialize, Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -60,9 +63,9 @@ pub(crate) struct TableData {
     pub operation_tool: Arc<RwLock<Vec<database::table::OperationTool>>>,
 }
 impl TableData {
-    pub fn query(&mut self, mut query_table: QueryTable) -> QueryTable {
+    pub fn query(&mut self, query_table: &mut QueryTable) -> QueryTable {
         match query_table {
-            QueryTable::PreOperativeDefault(object) => {
+            QueryTable::PreOperativeDefault(_) => {
                 let operations = self.operation.read().unwrap();
                 let patients = self.patient.read().unwrap();
                 let rooms = self.room.read().unwrap();
@@ -114,11 +117,94 @@ impl TableData {
                     };
                     bruh
                 }).collect::<Vec<crate::query_return::PreOperativeDefault>>();
-                query_table = QueryTable::PreOperativeDefault(Some(listt));
-                query_table
+                *query_table = QueryTable::PreOperativeDefault(Some(listt));
+                query_table.to_owned()
             },
+            QueryTable::PreOperativeToolReady(_) => {
+                query_table.to_owned()
+            }
 
         }
+    }
+    pub fn build_table<'a>(ui: &'a mut Ui, query_table: &'a mut QueryTable, data: &'a mut PreOperativeScopeWindow) -> TableBuilder<'a> {
+        if let QueryTable::PreOperativeDefault(Some(s)) = &query_table {
+            let keee = TableBuilder::new(ui)
+            .column(Column::auto().resizable(false))
+            .column(Column::auto().resizable(false))
+            .column(Column::auto().resizable(false))
+            .column(Column::auto().resizable(false))
+            .column(Column::auto().resizable(false))
+            .column(Column::auto().resizable(false))
+            .header(20.0, |mut header| {
+                let headings = ["label", "patient full name", "room name", "tools ready", "starting operation", "ending operation"];
+                for title in headings {
+                    header.col(|ui| {
+                        ui.horizontal(|ui|{
+                            ui.heading(title);
+                        });
+                    });
+                }
+            })
+            .body(|mut body| {
+                for content in s {
+                    if content.op_status.clone() != OperationStatus::PreOperative {
+                        continue;
+                    }
+                    let date_color = date_code(
+                        &content.start_time.clone(),
+                        &content.end_time.clone()
+                    );
+                    body.row(30.0, |mut row| {
+                
+                        row.col(|ui| {
+                            if ui.add(Label::new(content.op_label.clone()).sense(Sense::click())).clicked() {
+                        
+                            }
+                        });
+                        row.col(|ui| {
+                            if ui.add(Label::new(content.patient_full_name.clone()).sense(Sense::click())).clicked() {
+                        
+                            }
+                        });
+                        row.col(|ui| {
+                            if ui.add(Label::new(content.room_name.clone()).sense(Sense::click())).clicked() {
+                        
+                            }
+                        });
+                        row.col(|ui| {
+                            if ui.add(Label::new(content.on_site_percentage.clone().to_string()).sense(Sense::click())).clicked() {
+                                println!("on_site_percentage clicked");
+                                data.enable_scope = true;
+                                data.id_reference = Some(content.op_id.expect("no operation id"));
+                                data.scope = Some(query_table.clone());
+                            }
+                        });
+                        row.col(|ui| {
+                            let text = RichText::new(format_date(&content.start_time.clone())).color(date_color);
+                            if ui.add(Label::new(text).sense(Sense::click())).clicked() {
+                        
+                            }
+                        });
+                        row.col(|ui| {
+                            let text = RichText::new(format_date(&content.end_time.clone())).color(date_color);
+                            if ui.add(Label::new(text).sense(Sense::click())).clicked() {
+                        
+                            }
+                        });
+                    });
+                }
+            });
+            keee
+        } else {
+
+        }
+        TableBuilder::new(ui)
+        .column(Column::auto().resizable(false))
+        .column(Column::auto().resizable(false))
+        .column(Column::auto().resizable(false))
+        .column(Column::auto().resizable(false))
+        .column(Column::auto().resizable(false))
+        .column(Column::auto().resizable(false))
     }
     pub fn new() -> Self {
         TableData {

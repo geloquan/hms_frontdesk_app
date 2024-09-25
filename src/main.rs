@@ -309,6 +309,7 @@ impl App for FrontdeskApp {
                     });
             }
             if self.central_panel_window_show.pre_operative.show {
+                let mut query_table = QueryTable::PreOperativeDefault(None);
                 egui::Window::new("〰 Pre-Operative")
                 .id(egui::Id::new("pre_operative")) // unique id for the window
                 .resizable(true)
@@ -318,104 +319,46 @@ impl App for FrontdeskApp {
                 .scroll(false)
                 .enabled(true)
                 .show(ctx, |ui| {
-                    if let Some(query_table_return) = self.central_panel_window_show.supports_scope(CentralWindowEnum::PreOperative) {
+                    ui.horizontal(|ui| {
+                        ui.label("🔎");
+                        ui.text_edit_singleline(&mut self.central_panel_window_show.pre_operative.search_input);
+                        if ui.button("help").clicked() {
+                            
+                        }
+                        if let Some(_) = self.central_panel_window_show.supports_scope(CentralWindowEnum::PreOperative) {
+                            if ui.button("back").clicked() {
+                                self.central_panel_window_show.unsupport_scope(CentralWindowEnum::PreOperative);
+                            }
+                        }
+                    });
+                    if let Some(mut query_table_return) = self.central_panel_window_show.supports_scope(CentralWindowEnum::PreOperative) {
                         if let Some(data) = &mut self.data {
-                            match data.query(query_table_return) {
+                            match data.query(&mut query_table_return) {
                                 QueryTable::PreOperativeDefault(Some(s)) => {
-                                    
+                                    println!("PreOperativeDefault(SOME)");
                                 }, 
                                 QueryTable::PreOperativeDefault(None) => {
-
+                                    println!("PreOperativeDefault(NONE)");
                                 }
                                 QueryTable::PreOperativeToolReady(Some(s)) => {
-
+                                    
+                                    println!("PreOperativeToolReady(SOME)");
                                 },
                                 QueryTable::PreOperativeToolReady(None) => {
-                                    
+                                    println!("PreOperativeToolReady(NONE)");
                                 },
-                                //query_return::PreOperativeDefault(Some(s)) => {
-                                //    
-                                //},
-                                //PreOperativeDefault(None) => {
-                                //    
-                                //}
                             }
                         }
                     } else {
-                        ui.horizontal(|ui| {
-                            ui.label("🔎");
-                            ui.text_edit_singleline(&mut self.central_panel_window_show.pre_operative.search_input);
-                            if ui.button("help").clicked() {
-    
-                            }
-                        });
-                        TableBuilder::new(ui)
-                        .column(Column::auto().resizable(false))
-                        .column(Column::auto().resizable(false))
-                        .column(Column::auto().resizable(false))
-                        .column(Column::auto().resizable(false))
-                        .column(Column::auto().resizable(false))
-                        .column(Column::auto().resizable(false))
-                        .header(20.0, |mut header| {
-                            let headings = ["label", "patient full name", "room name", "tools ready", "starting operation", "ending operation"];
-                            for title in headings {
-                                header.col(|ui| {
-                                    ui.horizontal(|ui|{
-                                        ui.heading(title);
-                                    });
-                                });
-                            }
-                        })
-                        .body(|mut body| {
-                            if let Some(table_data) = &mut self.data {
-                                let query_table: QueryTable = table_data.query(QueryTable::PreOperativeDefault(None));
-                                if let QueryTable::PreOperativeDefault(Some(sample_query)) = query_table {
-                                    for content in sample_query {
-                                        if content.op_status.clone() != OperationStatus::PreOperative {
-                                            continue;
-                                        }
-                                        let date_color = date_code(
-                                            &content.start_time.clone(),
-                                            &content.end_time.clone()
-                                        );
-                                        body.row(30.0, |mut row| {
-                                            row.col(|ui| {
-                                                if ui.add(Label::new(content.op_label.clone()).sense(Sense::click())).clicked() {
-                                                    
-                                                }
-                                            });
-                                            row.col(|ui| {
-                                                if ui.add(Label::new(content.patient_full_name.clone()).sense(Sense::click())).clicked() {
-                                                    
-                                                }
-                                            });
-                                            row.col(|ui| {
-                                                if ui.add(Label::new(content.room_name.clone()).sense(Sense::click())).clicked() {
-                                                    
-                                                }
-                                            });
-                                            row.col(|ui| {
-                                                if ui.add(Label::new(content.on_site_percentage.clone().to_string()).sense(Sense::click())).clicked() {
-                                                    self.central_panel_window_show.pre_operative.enable_scope = true;
-                                                }
-                                            });
-                                            row.col(|ui| {
-                                                let text = RichText::new(format_date(&content.start_time.clone())).color(date_color);
-                                                if ui.add(Label::new(text).sense(Sense::click())).clicked() {
-                                                    
-                                                }
-                                            });
-                                            row.col(|ui| {
-                                                let text = RichText::new(format_date(&content.end_time.clone())).color(date_color);
-                                                if ui.add(Label::new(text).sense(Sense::click())).clicked() {
-                                                    
-                                                }
-                                            });
-                                        });
-                                    }
-                                }
-                            }
-                        });
+                        if let Some(data) = &mut self.data {
+                            TableData::build_table(
+                                ui, 
+                                &mut data.query(
+                                    &mut QueryTable::PreOperativeDefault(None)
+                                ),
+                                &mut self.central_panel_window_show.pre_operative
+                            );
+                        }
                     }
                 });
             }
