@@ -1,11 +1,12 @@
 mod table;
+mod database;
 use database::table::OperationStatus;
 use table::{
-    TableData
+    query_return::{self, QueryTable}, TableData
 };
-mod database;
 
 use chrono::{DateTime, Datelike, NaiveDateTime, Timelike, Utc};
+use window::{InProgressScopeWindow, PreOperativeScopeWindow};
 use std::fmt;
 use eframe::{egui, App, Frame};
 use egui::{mutex::Mutex, Color32, RichText};
@@ -56,18 +57,20 @@ struct ReceiveMessage {
     status_code: String,
     data: String,
 }
-enum CentralWindow {
+enum CentralWindowEnum {
     InProgress,
     PreOperative
 }
-struct CentralWindow {
-    in_progress: InProgressScopeWindow,
-    pre_operative: PreOperativeScopeWindow
+mod window;
+#[derive(Debug, Default)]
+pub struct CentralWindow {
+    pub in_progress: InProgressScopeWindow,
+    pub pre_operative: PreOperativeScopeWindow
 }
 impl CentralWindow {
-    pub fn supports_scope(&self, database_table: CentralWindow) -> Option<query_return::QueryTable> {
+    pub fn supports_scope(&self, database_table: CentralWindowEnum) -> Option<query_return::QueryTable> {
         match database_table {
-            CentralWindow::InProgress => {
+            CentralWindowEnum::InProgress => {
                 if self.in_progress.enable_scope &&
                 !self.in_progress.id_reference.is_none() &&
                 !self.in_progress.scope.is_none() {
@@ -76,7 +79,7 @@ impl CentralWindow {
                     None
                 }
             },
-            CentralWindow::PreOperative => {
+            CentralWindowEnum::PreOperative => {
                 if self.pre_operative.enable_scope &&
                 !self.pre_operative.id_reference.is_none() &&
                 !self.pre_operative.scope.is_none() {
@@ -101,7 +104,7 @@ struct FrontdeskApp {
     sender: WsSender,
     receiver: WsReceiver,
     central_panel_window_show: CentralWindow,
-    central_window: OperationWindow,
+    //central_window: OperationWindow,
     window_input_ctx: CentralWindowInput
 }
 
@@ -181,10 +184,10 @@ impl FrontdeskApp {
             window_input_ctx: CentralWindowInput::default()
         }
     }
-    fn toggle_window(&mut self, central_window: CentralWindow) {
+    fn toggle_window(&mut self, central_window: CentralWindowEnum) {
         match central_window {
-            CentralWindow::InProgress => self.central_panel_window_show.in_progress = !self.central_panel_window_show.in_progress,
-            CentralWindow::PreOperative => self.central_panel_window_show.pre_operative.show = !self.central_panel_window_show.pre_operative.show,
+            CentralWindowEnum::InProgress => self.central_panel_window_show.in_progress.show = !self.central_panel_window_show.in_progress.show,
+            CentralWindowEnum::PreOperative => self.central_panel_window_show.pre_operative.show = !self.central_panel_window_show.pre_operative.show,
 
         }
     }
@@ -267,11 +270,11 @@ impl App for FrontdeskApp {
                 "⚙ Operation", 
                 |ui| { 
                     if ui.button("❕ In-progress").clicked() {
-                        self.toggle_window(CentralWindow::InProgress);
+                        self.toggle_window(CentralWindowEnum::InProgress);
                     }; 
                     ui.collapsing("☰ Others", |ui| {
                         if ui.button("〰 Pre-Operative").clicked() {
-                            self.toggle_window(CentralWindow::PreOperative);
+                            self.toggle_window(CentralWindowEnum::PreOperative);
                         }; 
                         let _ = ui.button("⛔ post-operative");
                         let _ = ui.button("✚ recovery");
@@ -288,7 +291,7 @@ impl App for FrontdeskApp {
             ui.label("Hello World!");
         });
         egui::CentralPanel::default().show(ctx, |ui| {
-            if self.central_panel_window_show.in_progress {
+            if self.central_panel_window_show.in_progress.show {
                 egui::Window::new("❕ In-progress")
                     .id(egui::Id::new("in_progress")) // unique id for the window
                     .resizable(true)
@@ -355,15 +358,18 @@ impl App for FrontdeskApp {
                 .scroll(false)
                 .enabled(true)
                 .show(ctx, |ui| {
-                    if let Some(query_table_return) = self.central_panel_window_show.supports_scope(CentralWindow::PreOperative) {
+                    if let Some(query_table_return) = self.central_panel_window_show.supports_scope(CentralWindowEnum::PreOperative) {
                         if let Some(data) = &self.data {
-                            match data.query(query_table_return) {
-                                PreOperativeDefault(Some(s)) => {
-                                    
-                                },
-                                PreOperativeDefault(None) => {
+                            match self.data.unwrap().query(query_table_return) {
+                                QueryTable::PreOperativeDefault(Some(s)) => {
                                     
                                 }
+                                //query_return::PreOperativeDefault(Some(s)) => {
+                                //    
+                                //},
+                                //PreOperativeDefault(None) => {
+                                //    
+                                //}
                             }
                         }
                     } else {

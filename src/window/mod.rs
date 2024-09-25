@@ -1,6 +1,5 @@
-
 pub enum WindowPropertyScope {
-    PreOperative(Option<PreOperativeScope>)
+    PreOperative(Option<PreOperativeScope>),
     InProgress(Option<InProgressScope>)
 }
 
@@ -11,12 +10,12 @@ pub enum PreOperativeScope {
     ToolReady,
     CalendarVisualization
 }
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct PreOperativeScopeWindow {
-    show: bool,
-    enable_scope: bool,
-    id_reference: Option<i32>,
-    scope: Option<query_return::QueryTable>
+    pub show: bool,
+    pub enable_scope: bool,
+    pub id_reference: Option<i32>,
+    pub scope: Option<query_return::QueryTable>
 }
 impl PreOperativeScopeWindow {
     
@@ -24,10 +23,10 @@ impl PreOperativeScopeWindow {
 
 pub enum InProgressScope {
 }
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct InProgressScopeWindow {
-    show: bool,
-    enable_scope: bool,
-    id_reference: Option<i32>,
-    scope: Option<query_return::QueryTable>
+    pub show: bool,
+    pub enable_scope: bool,
+    pub id_reference: Option<i32>,
+    pub scope: Option<query_return::QueryTable>
 }

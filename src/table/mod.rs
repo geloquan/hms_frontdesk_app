@@ -1,12 +1,13 @@
 use std::sync::{Arc, Mutex, RwLock};
+use query_return::QueryTable;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use update::UpdateEquipmentRow;
 
 mod update;
-mod query_return;
+pub mod query_return;
 
-use crate::{database::{self, table::*}, DatabaseTable};
+use crate::{database::{self, table::{self, *}}, DatabaseTable};
 
 #[derive(Deserialize, Debug, Serialize)]
 #[serde(rename_all = "lowercase")]

@@ -1,3 +1,7 @@
+use serde::{Deserialize, Serialize};
+
+use crate::database;
+
 pub enum QueryTable {
     PreOperativeDefault(Option<Vec<PreOperativeDefault>>)
 }
@@ -7,7 +11,7 @@ pub struct PreOperativeDefault {
     pub op_id: Option<i32>,
     pub op_label: String,
     pub patient_full_name: String,
-    pub op_status: OperationStatus,
+    pub op_status: database::table::OperationStatus,
     pub room_name: String,
     pub total_tools: i64,
     pub on_site_tools: i64,
