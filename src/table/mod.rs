@@ -1,5 +1,5 @@
 use std::sync::{Arc, Mutex, RwLock};
-use query_return::QueryTable;
+use query_return::{PreOperativeDefault, QueryTable};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use update::UpdateEquipmentRow;
@@ -43,7 +43,7 @@ pub struct RawTable {
     pub operation_staff: Vec<OperationStaff>,       
     pub operation_tool: Vec<OperationTool>,         
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct TableData {
     pub equipment: Arc<RwLock<Vec<database::table::Equipment>>>,
     pub room: Arc<RwLock<Vec<database::table::Room>>>,
@@ -60,7 +60,7 @@ pub(crate) struct TableData {
     pub operation_tool: Arc<RwLock<Vec<database::table::OperationTool>>>,
 }
 impl TableData {
-    pub fn query(&mut self, query_table: QueryTable) -> QueryTable {
+    pub fn query(&mut self, mut query_table: QueryTable) -> QueryTable {
         match query_table {
             QueryTable::PreOperativeDefault(object) => {
                 let operations = self.operation.read().unwrap();
@@ -68,7 +68,7 @@ impl TableData {
                 let rooms = self.room.read().unwrap();
                 let operation_tools = self.operation_tool.read().unwrap();
             
-                operations.iter().map(|op| {
+                let listt: Vec<PreOperativeDefault> = operations.iter().map(|op| {
                     let op_id = op.id;
                     let op_label = op.label.clone().unwrap_or_else(|| "N/A".to_string());
                     let op_status = op.status.clone().unwrap_or_else(|| OperationStatus::Discharge);
@@ -113,7 +113,9 @@ impl TableData {
                         end_time: op.end_time.clone().unwrap_or_else(|| "N/A".to_string()),   
                     };
                     bruh
-                }).collect::<QueryTable::PreOperativeDefault(Vec<PreOperative>)>()
+                }).collect::<Vec<crate::query_return::PreOperativeDefault>>();
+                query_table = QueryTable::PreOperativeDefault(Some(listt));
+                query_table
             },
 
         }

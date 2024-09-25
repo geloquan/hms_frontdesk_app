@@ -2,8 +2,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::database;
 
+#[derive(Debug, Clone)]
 pub enum QueryTable {
-    PreOperativeDefault(Option<Vec<PreOperativeDefault>>)
+    PreOperativeDefault(Option<Vec<PreOperativeDefault>>),
+    PreOperativeToolReady(Option<Vec<PreOperativeToolReady>>)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
