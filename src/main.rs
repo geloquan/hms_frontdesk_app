@@ -5,6 +5,8 @@ use table::{
 };
 mod database;
 
+use chrono::{DateTime, Datelike, NaiveDateTime, Timelike, Utc};
+use std::fmt;
 use eframe::{egui, App, Frame};
 use egui::{mutex::Mutex, Color32, RichText};
 use egui_extras::{TableBuilder, Column};
@@ -54,18 +56,44 @@ struct ReceiveMessage {
     status_code: String,
     data: String,
 }
-enum ToogleCentralWindow {
+enum CentralWindow {
     InProgress,
     PreOperative
 }
 struct CentralWindow {
-    in_progress: bool,
-    pre_operative: bool
+    in_progress: InProgressScopeWindow,
+    pre_operative: PreOperativeScopeWindow
 }
+impl CentralWindow {
+    pub fn supports_scope(&self, database_table: CentralWindow) -> Option<query_return::QueryTable> {
+        match database_table {
+            CentralWindow::InProgress => {
+                if self.in_progress.enable_scope &&
+                !self.in_progress.id_reference.is_none() &&
+                !self.in_progress.scope.is_none() {
+                    self.in_progress.scope.unwrap() 
+                } else {
+                    None
+                }
+            },
+            CentralWindow::PreOperative => {
+                if self.pre_operative.enable_scope &&
+                !self.pre_operative.id_reference.is_none() &&
+                !self.pre_operative.scope.is_none() {
+                    self.pre_operative.scope.unwrap() 
+                } else {
+                    None
+                }
+            }
+        }
+    }
+}
+#[derive(Default)]
 struct CentralWindowInput {
     in_progress: String,
     pre_operative: String
 }
+
 struct FrontdeskApp {
     data: Option<TableData>,
     rx: tokio::sync::mpsc::Receiver<String>,
@@ -73,10 +101,9 @@ struct FrontdeskApp {
     sender: WsSender,
     receiver: WsReceiver,
     central_panel_window_show: CentralWindow,
+    central_window: OperationWindow,
     window_input_ctx: CentralWindowInput
 }
-use chrono::{DateTime, Datelike, NaiveDateTime, Timelike, Utc};
-use std::fmt;
 
 fn format_date(input: &str) -> String {
     let naive_datetime = NaiveDateTime::parse_from_str(input, "%Y-%m-%d %H:%M:%S")
@@ -150,20 +177,14 @@ impl FrontdeskApp {
             tx,
             sender,
             receiver,
-            central_panel_window_show: CentralWindow {
-                in_progress: false,
-                pre_operative: false
-            },
-            window_input_ctx: CentralWindowInput {
-                in_progress: "".to_string(),
-                pre_operative: "".to_string()
-            }
+            central_panel_window_show: CentralWindow::default(),
+            window_input_ctx: CentralWindowInput::default()
         }
     }
-    fn toggle_window(&mut self, central_window: ToogleCentralWindow) {
+    fn toggle_window(&mut self, central_window: CentralWindow) {
         match central_window {
-            ToogleCentralWindow::InProgress => self.central_panel_window_show.in_progress = !self.central_panel_window_show.in_progress,
-            ToogleCentralWindow::PreOperative => self.central_panel_window_show.pre_operative = !self.central_panel_window_show.pre_operative,
+            CentralWindow::InProgress => self.central_panel_window_show.in_progress = !self.central_panel_window_show.in_progress,
+            CentralWindow::PreOperative => self.central_panel_window_show.pre_operative.show = !self.central_panel_window_show.pre_operative.show,
 
         }
     }
@@ -222,7 +243,7 @@ impl App for FrontdeskApp {
                 ewebsock::WsEvent::Error(_) => {
                     let options = ewebsock::Options::default();
                     let (mut sender, receiver) = ewebsock::connect("ws://127.0.0.15:8080", options).unwrap();
-            
+                    
                     let request_json = serde_json::to_string(&SendMessage {
                         level: "frontdesk".to_string(),
                         method: "initial".to_string(),
@@ -246,11 +267,11 @@ impl App for FrontdeskApp {
                 "⚙ Operation", 
                 |ui| { 
                     if ui.button("❕ In-progress").clicked() {
-                        self.toggle_window(ToogleCentralWindow::InProgress);
+                        self.toggle_window(CentralWindow::InProgress);
                     }; 
                     ui.collapsing("☰ Others", |ui| {
                         if ui.button("〰 Pre-Operative").clicked() {
-                            self.toggle_window(ToogleCentralWindow::PreOperative);
+                            self.toggle_window(CentralWindow::PreOperative);
                         }; 
                         let _ = ui.button("⛔ post-operative");
                         let _ = ui.button("✚ recovery");
@@ -324,76 +345,103 @@ impl App for FrontdeskApp {
                             });
                     });
             }
-            if self.central_panel_window_show.pre_operative {
+            if self.central_panel_window_show.pre_operative.show {
                 egui::Window::new("〰 Pre-Operative")
-                    .id(egui::Id::new("pre_operative")) // unique id for the window
-                    .resizable(true)
-                    .constrain(true)
-                    .collapsible(true)
-                    .title_bar(true)
-                    .scroll(false)
-                    .enabled(true)
-                    .show(ctx, |ui| {
+                .id(egui::Id::new("pre_operative")) // unique id for the window
+                .resizable(true)
+                .constrain(true)
+                .collapsible(true)
+                .title_bar(true)
+                .scroll(false)
+                .enabled(true)
+                .show(ctx, |ui| {
+                    if let Some(query_table_return) = self.central_panel_window_show.supports_scope(CentralWindow::PreOperative) {
+                        if let Some(data) = &self.data {
+                            match data.query(query_table_return) {
+                                PreOperativeDefault(Some(s)) => {
+                                    
+                                },
+                                PreOperativeDefault(None) => {
+                                    
+                                }
+                            }
+                        }
+                    } else {
                         ui.horizontal(|ui| {
                             ui.label("🔎");
                             ui.text_edit_singleline(&mut self.window_input_ctx.pre_operative);
                             if ui.button("help").clicked() {
-
+    
                             }
                         });
                         TableBuilder::new(ui)
-                            .column(Column::auto().resizable(false))
-                            .column(Column::auto().resizable(false))
-                            .column(Column::auto().resizable(false))
-                            .column(Column::auto().resizable(false))
-                            .column(Column::auto().resizable(false))
-                            .header(20.0, |mut header| {
-                                let headings = ["label", "patient full name", "room name", "starting operation", "ending operation"];
-                                for title in headings {
-                                    header.col(|ui| {
-                                        ui.horizontal(|ui|{
-                                            ui.heading(title);
+                        .column(Column::auto().resizable(false))
+                        .column(Column::auto().resizable(false))
+                        .column(Column::auto().resizable(false))
+                        .column(Column::auto().resizable(false))
+                        .column(Column::auto().resizable(false))
+                        .column(Column::auto().resizable(false))
+                        .header(20.0, |mut header| {
+                            let headings = ["label", "patient full name", "room name", "tools ready", "starting operation", "ending operation"];
+                            for title in headings {
+                                header.col(|ui| {
+                                    ui.horizontal(|ui|{
+                                        ui.heading(title);
+                                    });
+                                });
+                            }
+                        })
+                        .body(|mut body| {
+                            if let Some(table_data) = &mut self.data {
+                                let sample_query = table_data.query();
+    
+                                for content in sample_query {
+                                    if content.op_status.clone() != OperationStatus::PreOperative {
+                                        continue;
+                                    }
+                                    let date_color = date_code(
+                                        &content.start_time.clone(),
+                                        &content.end_time.clone()
+                                    );
+                                    body.row(30.0, |mut row| {
+                                        row.col(|ui| {
+                                            if ui.add(Label::new(content.op_label.clone()).sense(Sense::click())).clicked() {
+                                                
+                                            }
+                                        });
+                                        row.col(|ui| {
+                                            if ui.add(Label::new(content.patient_full_name.clone()).sense(Sense::click())).clicked() {
+                                                
+                                            }
+                                        });
+                                        row.col(|ui| {
+                                            if ui.add(Label::new(content.room_name.clone()).sense(Sense::click())).clicked() {
+                                                
+                                            }
+                                        });
+                                        row.col(|ui| {
+                                            if ui.add(Label::new(content.on_site_percentage.clone()).sense(Sense::click())).clicked() {
+    
+                                            }
+                                        });
+                                        row.col(|ui| {
+                                            let text = RichText::new(format_date(&content.start_time.clone())).color(date_color);
+                                            if ui.add(Label::new(text).sense(Sense::click())).clicked() {
+                                                
+                                            }
+                                        });
+                                        row.col(|ui| {
+                                            let text = RichText::new(format_date(&content.end_time.clone())).color(date_color);
+                                            if ui.add(Label::new(text).sense(Sense::click())).clicked() {
+                                                
+                                            }
                                         });
                                     });
                                 }
-                            })
-
-                            .body(|mut body| {
-                                if let Some(table_data) = &mut self.data {
-                                    let sample_query = table_data.query();
-                                    println!("sample_query{:?}", sample_query);
-
-                                    for content in sample_query {
-                                        if content.op_status.clone() != OperationStatus::PreOperative {
-                                            continue;
-                                        }
-                                        let date_color = date_code(
-                                            &content.start_time.clone(),
-                                            &content.end_time.clone()
-                                        );
-                                        body.row(30.0, |mut row| {
-                                            row.col(|ui| {
-                                                ui.label(content.op_label.clone());
-                                            });
-                                            row.col(|ui| {
-                                                ui.label(content.patient_full_name.clone());
-                                            });
-                                            row.col(|ui| {
-                                                ui.label(content.room_name.clone());
-                                            });
-                                            row.col(|ui| {
-                                                let text = RichText::new(format_date(&content.start_time.clone())).color(date_color);
-                                                ui.label(text);
-                                            });
-                                            row.col(|ui| {
-                                                let text = RichText::new(format_date(&content.end_time.clone())).color(date_color);
-                                                ui.label(text);
-                                            });
-                                        });
-                                    }
-                                }
-                            });
-                    });
+                            }
+                        });
+                    }
+                });
             }
         });
     }
