@@ -2,11 +2,12 @@ mod table;
 mod database;
 use database::table::OperationStatus;
 use table::{
-    query_return::{self, QueryTable}, TableData
+    query_return::{self, WindowTable::{self, *}}, TableData
 };
+mod window;
 
 use chrono::{DateTime, Datelike, NaiveDateTime, Timelike, Utc};
-use window::{CentralWindow, CentralWindowEnum, InProgressScopeWindow, PreOperativeScopeWindow};
+use window::{*};
 use std::fmt;
 use eframe::{egui, App, Frame};
 use egui::{mutex::Mutex, Color32, Label, RichText, Sense};
@@ -57,7 +58,6 @@ struct ReceiveMessage {
     status_code: String,
     data: String,
 }
-mod window;
 
 struct FrontdeskApp {
     data: Option<TableData>,
@@ -156,26 +156,21 @@ impl FrontdeskApp {
 impl App for FrontdeskApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         if let Some(msg) = self.receiver.try_recv() {
-            println!("Ok(msg): {:?}", msg);
             match msg {
                 ewebsock::WsEvent::Opened => {
                     
                 },
                 ewebsock::WsEvent::Message(text) => {
-                    println!("text: {:?}", text);
                     match text {
                         ewebsock::WsMessage::Binary(vec) => todo!(),
                         ewebsock::WsMessage::Text(text) => {
                             match serde_json::from_str::<ReceiveMessage>(&text) {
                                 Ok(message) => {
-                                    println!("message: {:?}", message);
                                     match message.operation {
                                         Operation::Initialize => {
                                             if let Some(data) = &mut self.data {
-                                                println!("message.data: {:?}", message.data);
                                                 data.initialize(message.data);
                                             } else {
-                                                println!("message.data: {:?}", message.data);
                                                 let mut new_table_data = TableData::new();
                                                 new_table_data.initialize(message.data);
                                                 self.data = Some(new_table_data);
@@ -183,7 +178,6 @@ impl App for FrontdeskApp {
                                         },
                                         Operation::Update => {
                                             if let Some(data) = &self.data {
-                                                println!("date.update()");
                                                 data.update(message.data, DatabaseTable::Equipment)
                                             } else {
                                                 let new_table_data = TableData::new();
@@ -309,7 +303,13 @@ impl App for FrontdeskApp {
                     });
             }
             if self.central_panel_window_show.pre_operative.show {
-                let mut query_table = QueryTable::PreOperativeDefault(None);
+                let mut window_table = WindowTable::PreOperativeDefault(None);
+                if self.central_panel_window_show.pre_operative.tree.is_none() {
+                    if let Some(data) = &mut self.data {
+                        self.central_panel_window_show.initial_tree(CentralWindowEnum::PreOperative, data.query(&mut WindowTable::PreOperativeDefault(None)));
+                        //self.central_panel_window_show.push_last(CentralWindowEnum::PreOperative, data.query(&mut WindowTable::PreOperativeDefault(None)));
+                    }
+                }
                 egui::Window::new("〰 Pre-Operative")
                 .id(egui::Id::new("pre_operative")) // unique id for the window
                 .resizable(true)
@@ -325,40 +325,21 @@ impl App for FrontdeskApp {
                         if ui.button("help").clicked() {
                             
                         }
-                        if let Some(_) = self.central_panel_window_show.supports_scope(CentralWindowEnum::PreOperative) {
-                            if ui.button("back").clicked() {
-                                self.central_panel_window_show.unsupport_scope(CentralWindowEnum::PreOperative);
-                            }
-                        }
+                        //if let Some(_) = self.central_panel_window_show.supports_scope(CentralWindowEnum::PreOperative) {
+                        //    if ui.button("back").clicked() {
+                        //        self.central_panel_window_show.unsupport_scope(CentralWindowEnum::PreOperative);
+                        //    }
+                        //}
                     });
-                    if let Some(mut query_table_return) = self.central_panel_window_show.supports_scope(CentralWindowEnum::PreOperative) {
-                        if let Some(data) = &mut self.data {
-                            match data.query(&mut query_table_return) {
-                                QueryTable::PreOperativeDefault(Some(s)) => {
-                                    println!("PreOperativeDefault(SOME)");
-                                }, 
-                                QueryTable::PreOperativeDefault(None) => {
-                                    println!("PreOperativeDefault(NONE)");
-                                }
-                                QueryTable::PreOperativeToolReady(Some(s)) => {
-                                    
-                                    println!("PreOperativeToolReady(SOME)");
-                                },
-                                QueryTable::PreOperativeToolReady(None) => {
-                                    println!("PreOperativeToolReady(NONE)");
-                                },
-                            }
-                        }
-                    } else {
-                        if let Some(data) = &mut self.data {
-                            TableData::build_table(
-                                ui, 
-                                &mut data.query(
-                                    &mut QueryTable::PreOperativeDefault(None)
-                                ),
-                                &mut self.central_panel_window_show.pre_operative
-                            );
-                        }
+                    let mut option_data = self.central_panel_window_show.display_last(CentralWindowEnum::PreOperative);
+                    if let (Some(option_data), Some(data)) = (&mut option_data, &mut self.data) {
+                        TableData::build_table(
+                            ui, 
+                            option_data.to_owned(),
+                            &mut self.central_panel_window_show,
+                            data
+                        );
+
                     }
                 });
             }

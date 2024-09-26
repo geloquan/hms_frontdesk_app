@@ -1,5 +1,5 @@
 use std::sync::{Arc, Mutex, RwLock};
-use query_return::{PreOperativeDefault, QueryTable};
+use query_return::{PreOperativeDefault, PreOperativeToolReady, WindowTable};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use update::UpdateEquipmentRow;
@@ -10,7 +10,7 @@ use egui_extras::{TableBuilder, Column};
 mod update;
 pub mod query_return;
 
-use crate::{database::{self, table::{self, *}}, date_code, format_date, window::PreOperativeScopeWindow, DatabaseTable};
+use crate::{database::{self, table::{self, *}}, date_code, format_date, window::{self, *}, DatabaseTable};
 
 #[derive(Deserialize, Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -63,9 +63,9 @@ pub(crate) struct TableData {
     pub operation_tool: Arc<RwLock<Vec<database::table::OperationTool>>>,
 }
 impl TableData {
-    pub fn query(&mut self, query_table: &mut QueryTable) -> QueryTable {
-        match query_table {
-            QueryTable::PreOperativeDefault(_) => {
+    pub fn query(&mut self, window_table: &mut WindowTable) -> WindowTable {
+        match window_table {
+            WindowTable::PreOperativeDefault(_) => {
                 let operations = self.operation.read().unwrap();
                 let patients = self.patient.read().unwrap();
                 let rooms = self.room.read().unwrap();
@@ -117,17 +117,33 @@ impl TableData {
                     };
                     bruh
                 }).collect::<Vec<crate::query_return::PreOperativeDefault>>();
-                *query_table = QueryTable::PreOperativeDefault(Some(listt));
-                query_table.to_owned()
-            },
-            QueryTable::PreOperativeToolReady(_) => {
-                query_table.to_owned()
-            }
 
+                *window_table = WindowTable::PreOperativeDefault(Some(listt));
+                window_table.to_owned()
+            },
+            WindowTable::PreOperativeToolReady(_) => {
+                let operations = self.operation.read().unwrap();
+                let tools = self.tool.read().unwrap();
+                let equipment = self.equipment.read().unwrap();
+                let operation_tools = self.operation_tool.read().unwrap();
+
+                let listt: Vec<PreOperativeToolReady> = operations.iter().flat_map(|op| {
+                    PreOperativeToolReady {
+                        operation_label: op_label.clone(), // Clone to pass into multiple items
+                        tool_id,
+                        equipment_name,
+                        tool_status,
+                        on_site,
+                    }
+                }).collect();
+                *window_table = WindowTable::PreOperativeToolReady(Some(listt));
+                window_table.to_owned()
+            }
         }
     }
-    pub fn build_table<'a>(ui: &'a mut Ui, query_table: &'a mut QueryTable, data: &'a mut PreOperativeScopeWindow) -> TableBuilder<'a> {
-        if let QueryTable::PreOperativeDefault(Some(s)) = &query_table {
+    pub fn build_table<'a>(ui: &'a mut Ui, window_table: WindowTable, central_window: &mut CentralWindow, data: &mut TableData) -> TableBuilder<'a> {
+        if let WindowTable::PreOperativeDefault(Some(s)) = &window_table {
+
             let keee = TableBuilder::new(ui)
             .column(Column::auto().resizable(false))
             .column(Column::auto().resizable(false))
@@ -173,10 +189,7 @@ impl TableData {
                         });
                         row.col(|ui| {
                             if ui.add(Label::new(content.on_site_percentage.clone().to_string()).sense(Sense::click())).clicked() {
-                                println!("on_site_percentage clicked");
-                                data.enable_scope = true;
-                                data.id_reference = Some(content.op_id.expect("no operation id"));
-                                data.scope = Some(query_table.clone());
+                                central_window.push_last(CentralWindowEnum::PreOperative, data.query(&mut WindowTable::PreOperativeToolReady(None)));
                             }
                         });
                         row.col(|ui| {
@@ -195,8 +208,16 @@ impl TableData {
                 }
             });
             keee
-        } else {
-
+        } 
+        if let WindowTable::PreOperativeToolReady(Some(s)) = &window_table { 
+            println!("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+            TableBuilder::new(ui)
+            .column(Column::auto().resizable(false))
+            .column(Column::auto().resizable(false))
+            .column(Column::auto().resizable(false))
+            .column(Column::auto().resizable(false))
+            .column(Column::auto().resizable(false))
+            .column(Column::auto().resizable(false));
         }
         TableBuilder::new(ui)
         .column(Column::auto().resizable(false))
