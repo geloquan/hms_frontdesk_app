@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use update::UpdateEquipmentRow;
 
-use egui::{Label, RichText, Sense, Ui};
+use egui::{Color32, Label, RichText, Sense, Separator, Ui};
 use egui_extras::{TableBuilder, Column};
 
 mod update;
@@ -63,7 +63,7 @@ pub(crate) struct TableData {
     pub operation_tool: Arc<RwLock<Vec<database::table::OperationTool>>>,
 }
 impl TableData {
-    pub fn query(&mut self, window_table: &mut WindowTable) -> WindowTable {
+    pub fn query(&mut self, window_table: &mut WindowTable, id: Option<i32>) -> WindowTable {
         match window_table {
             WindowTable::PreOperativeDefault(_) => {
                 let operations = self.operation.read().unwrap();
@@ -122,29 +122,49 @@ impl TableData {
                 window_table.to_owned()
             },
             WindowTable::PreOperativeToolReady(_) => {
-                let operations = self.operation.read().unwrap();
-                let tools = self.tool.read().unwrap();
-                let equipment = self.equipment.read().unwrap();
-                let operation_tools = self.operation_tool.read().unwrap();
+                if let Some(operation_id) = id {
+                    let operation_tools = self.operation_tool.read().unwrap();
+                    let operations = self.operation.read().unwrap();
+                    let tools = self.tool.read().unwrap();
+                    let equipment = self.equipment.read().unwrap();
+                    let patients = self.patient.read().unwrap();
+                    
 
-                let listt: Vec<PreOperativeToolReady> = operations.iter().flat_map(|op| {
-                    PreOperativeToolReady {
-                        operation_label: op_label.clone(), // Clone to pass into multiple items
-                        tool_id,
-                        equipment_name,
-                        tool_status,
-                        on_site,
-                    }
-                }).collect();
-                *window_table = WindowTable::PreOperativeToolReady(Some(listt));
-                window_table.to_owned()
+                    let list: Vec<PreOperativeToolReady> = operation_tools.iter()
+                        .filter(|op_tool| {
+                            operations.iter().any(|op| op.id.unwrap_or_else(|| 0) == op_tool.operation_id.unwrap_or_else(|| -1) && op.id.unwrap_or_else(|| 0) == operation_id)
+                        })
+                        .map(|op_tool| {
+                            println!("op_tool {:?}", op_tool);
+                            let tool = tools.iter().find(|t| t.id == op_tool.tool_id);
+                            let equipment_item = tool.and_then(|t| equipment.iter().find(|e| e.id == t.info_id));
+                            println!("equipment_item {:?}", equipment_item);
+                            println!("tools {:?}", tools);
+                            println!("tool {:?}", tool);
+                            let tool_name = equipment_item.map_or(
+                                "Unknown Tool".to_string(), 
+                                |e| e.name.clone().unwrap_or_else(|| "N/A".to_string())
+                            );
+                            let tool_status = tool.map_or(EquipmentStatus::ForInspection, |t| t.status.clone().unwrap_or_else(|| EquipmentStatus::ForInspection));
+                            
+                            PreOperativeToolReady {
+                                equipment_name: tool_name,
+                                on_site: op_tool.on_site.map_or(false, |value| value == 1), // Assuming `on_site` is an Option<bool>
+                                tool_status,
+                            }
+                        })
+                        .collect();
+                    *window_table = WindowTable::PreOperativeToolReady(Some(list));
+                    window_table.to_owned()
+                } else {
+                    window_table.to_owned()
+                }
             }
         }
     }
-    pub fn build_table<'a>(ui: &'a mut Ui, window_table: WindowTable, central_window: &mut CentralWindow, data: &mut TableData) -> TableBuilder<'a> {
-        if let WindowTable::PreOperativeDefault(Some(s)) = &window_table {
-
-            let keee = TableBuilder::new(ui)
+    pub fn build_table<'a>(ui: &'a mut Ui, window_table: WindowTable, central_window: &mut CentralWindow, data: &mut TableData) -> () {
+        let table_return = if let WindowTable::PreOperativeDefault(Some(s)) = &window_table {
+            let tbl = TableBuilder::new(ui)
             .column(Column::auto().resizable(false))
             .column(Column::auto().resizable(false))
             .column(Column::auto().resizable(false))
@@ -189,7 +209,7 @@ impl TableData {
                         });
                         row.col(|ui| {
                             if ui.add(Label::new(content.on_site_percentage.clone().to_string()).sense(Sense::click())).clicked() {
-                                central_window.push_last(CentralWindowEnum::PreOperative, data.query(&mut WindowTable::PreOperativeToolReady(None)));
+                                central_window.push_last(CentralWindowEnum::PreOperative, data.query(&mut WindowTable::PreOperativeToolReady(None), content.op_id.clone()));
                             }
                         });
                         row.col(|ui| {
@@ -205,27 +225,83 @@ impl TableData {
                             }
                         });
                     });
+                    body.row(0.0, |mut row| {
+                        for _ in 0..6 {
+                            row.col(|ui| {
+                                ui.separator();
+                            });
+                        }
+                    });
                 }
             });
-            keee
-        } 
-        if let WindowTable::PreOperativeToolReady(Some(s)) = &window_table { 
-            println!("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-            TableBuilder::new(ui)
+            tbl
+        } else if let WindowTable::PreOperativeToolReady(Some(s)) = &window_table { 
+            let tbl = TableBuilder::new(ui)
             .column(Column::auto().resizable(false))
             .column(Column::auto().resizable(false))
             .column(Column::auto().resizable(false))
+            .header(20.0, |mut header| {
+                let headings = ["equipment name", "equipment on site", "tool status"];
+                for title in headings {
+                    header.col(|ui| {
+                        ui.horizontal(|ui|{
+                            ui.heading(title);
+                        });
+                    });
+                }
+            })
+            .body(|mut body| {
+                for content in s {
+                    body.row(30.0, |mut row| {
+                        row.col(|ui| {
+                            if ui.add(Label::new(content.equipment_name.clone()).sense(Sense::click())).clicked() {
+                        
+                            }
+                        });
+                        row.col(|ui| {
+                            let text = RichText::new(if content.on_site { "Yes" } else { "No" }).color(Color32::from_rgb(246, 140, 46));
+                            if ui.add(Label::new(text).sense(Sense::click())).clicked() {
+                        
+                            }
+                        });
+                        row.col(|ui| {
+                            if ui.add(Label::new(content.tool_status.clone().to_string()).sense(Sense::click())).clicked() {
+                        
+                            }
+                        });
+                    });
+                    body.row(0.0, |mut row| {
+                        for _ in 0..3 {
+                            row.col(|ui| {
+                                ui.separator();
+                            });
+                        }
+                    });
+                }
+            });
+            tbl
+        } else {
+            let tbl = TableBuilder::new(ui)
             .column(Column::auto().resizable(false))
-            .column(Column::auto().resizable(false))
-            .column(Column::auto().resizable(false));
-        }
-        TableBuilder::new(ui)
-        .column(Column::auto().resizable(false))
-        .column(Column::auto().resizable(false))
-        .column(Column::auto().resizable(false))
-        .column(Column::auto().resizable(false))
-        .column(Column::auto().resizable(false))
-        .column(Column::auto().resizable(false))
+            .header(20.0, |mut header| {
+                header.col(|ui| {
+                    ui.horizontal(|ui|{
+                        ui.heading("N/A");
+                    });
+                });
+            })
+            .body(|mut body| {
+                body.row(30.0, |mut row| {
+                    row.col(|ui| {
+                        if ui.add(Label::new("N/A").sense(Sense::click())).clicked() {
+                            
+                        }
+                    });
+                });
+            });
+            tbl
+        };
+        table_return
     }
     pub fn new() -> Self {
         TableData {

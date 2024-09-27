@@ -35,8 +35,6 @@ impl PreOperativeDefault {
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PreOperativeToolReady {
-    pub operation_label: String,
-    pub tool_id: i32,
     pub equipment_name: String,
     pub tool_status: crate::database::table::EquipmentStatus,
     pub on_site: bool,

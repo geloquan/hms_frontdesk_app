@@ -19,7 +19,7 @@ impl CentralWindow {
             CentralWindowEnum::PreOperative => {
                 if let Some(current) = &self.pre_operative.tree {
                     let mut current_child = &current.child;
-                    let mut current_data = &current.data;
+                    let current_data = &current.data;
 
                     if current_child.is_none() {
                         return Some(&current_data);
@@ -72,26 +72,26 @@ impl CentralWindow {
         }
     }
     pub fn push_last(&mut self, central_window_enum: CentralWindowEnum, window_table: WindowTable) {
-        println!("push_last");
-        println!("central_window_enum: {:?}", central_window_enum);
-        println!("WindowTable: {:?}", window_table);
+
         match central_window_enum {
             CentralWindowEnum::InProgress => {
-                println!("InProgress");
             },
             CentralWindowEnum::PreOperative => {
-                println!("PreOperative");
                 if let Some(holder) = &mut self.pre_operative.tree {
                     if let Some(ref mut child) = holder.child {
                         if child.child.is_some() {
                             CentralWindow::push_data_innermost_child(child, window_table);
                         } else {
-                            println!("pushed");
                             child.child = Some(Box::new(TableTree {
                                 data: window_table,
                                 child: None
                             }));
                         }
+                    } else {
+                        holder.child = Some(Box::new(TableTree {
+                            data: window_table,
+                            child: None
+                        }));
                     }
                 }
             },

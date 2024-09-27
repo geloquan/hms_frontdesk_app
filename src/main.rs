@@ -169,9 +169,11 @@ impl App for FrontdeskApp {
                                     match message.operation {
                                         Operation::Initialize => {
                                             if let Some(data) = &mut self.data {
+                                                println!("message.data {:?}", message.data);
                                                 data.initialize(message.data);
                                             } else {
                                                 let mut new_table_data = TableData::new();
+                                                println!("message.data {:?}", message.data);
                                                 new_table_data.initialize(message.data);
                                                 self.data = Some(new_table_data);
                                             }
@@ -306,7 +308,7 @@ impl App for FrontdeskApp {
                 let mut window_table = WindowTable::PreOperativeDefault(None);
                 if self.central_panel_window_show.pre_operative.tree.is_none() {
                     if let Some(data) = &mut self.data {
-                        self.central_panel_window_show.initial_tree(CentralWindowEnum::PreOperative, data.query(&mut WindowTable::PreOperativeDefault(None)));
+                        self.central_panel_window_show.initial_tree(CentralWindowEnum::PreOperative, data.query(&mut WindowTable::PreOperativeDefault(None), None));
                         //self.central_panel_window_show.push_last(CentralWindowEnum::PreOperative, data.query(&mut WindowTable::PreOperativeDefault(None)));
                     }
                 }

@@ -1,8 +1,7 @@
 select 
-	op.label as operation_label,
-    opt.on_site as is_tool_on_site,
-    t.status as tool_status,
-    e.name as tool_name
+    e.name as tool_name,
+    opt.on_site as is_tool_on_operation_site,
+    t.status as tool_status
 from 
 operationtool opt
 left join
@@ -11,8 +10,6 @@ left join
 tool t on opt.tool_id = t.id
 left join
 patient p on op.patient_id = p.id
-left join
-room r on op.room_id = r.id
 left join
 equipment e on t.info_id = e.id
 

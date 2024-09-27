@@ -1,3 +1,4 @@
+use std::fmt;
 use serde::{Serialize, Deserialize};
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, Deserialize, Serialize)]
@@ -5,6 +6,16 @@ pub enum EquipmentStatus {
     Ready,
     Borrowed,
     ForInspection,
+}
+impl fmt::Display for EquipmentStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let status_str = match self {
+            EquipmentStatus::Ready => "Ready",
+            EquipmentStatus::Borrowed => "Borrowed",
+            EquipmentStatus::ForInspection => "For Inspection",
+        };
+        write!(f, "{}", status_str)
+    }
 }
 #[derive(Clone, Debug, PartialEq, PartialOrd, Deserialize, Serialize)]
 pub enum RoomPurpose {
