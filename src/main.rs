@@ -2,22 +2,15 @@ mod table;
 mod database;
 use database::table::OperationStatus;
 use table::{
-    query_return::{self, WindowTable::{self, *}}, TableData
+    query_return::{self, WindowTable::{self, *}}, BuildTable, Query, TableData::{self}
 };
 mod window;
 
 use chrono::{DateTime, Datelike, NaiveDateTime, Timelike, Utc};
 use window::{*};
-use std::fmt;
 use eframe::{egui, App, Frame};
 use egui::{mutex::Mutex, Color32, Label, RichText, Sense};
 use egui_extras::{TableBuilder, Column};
-use futures::stream::SplitSink;
-use tokio::{runtime::Runtime, sync::mpsc, task};
-use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
-use futures_util::{StreamExt, SinkExt};
-use std::sync::{mpsc::Sender, Arc};
-use url::Url;
 use ewebsock::{self, WsReceiver, WsSender};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -169,11 +162,9 @@ impl App for FrontdeskApp {
                                     match message.operation {
                                         Operation::Initialize => {
                                             if let Some(data) = &mut self.data {
-                                                println!("message.data {:?}", message.data);
                                                 data.initialize(message.data);
                                             } else {
                                                 let mut new_table_data = TableData::new();
-                                                println!("message.data {:?}", message.data);
                                                 new_table_data.initialize(message.data);
                                                 self.data = Some(new_table_data);
                                             }
@@ -309,11 +300,10 @@ impl App for FrontdeskApp {
                 if self.central_panel_window_show.pre_operative.tree.is_none() {
                     if let Some(data) = &mut self.data {
                         self.central_panel_window_show.initial_tree(CentralWindowEnum::PreOperative, data.query(&mut WindowTable::PreOperativeDefault(None), None));
-                        //self.central_panel_window_show.push_last(CentralWindowEnum::PreOperative, data.query(&mut WindowTable::PreOperativeDefault(None)));
                     }
                 }
                 egui::Window::new("〰 Pre-Operative")
-                .id(egui::Id::new("pre_operative")) // unique id for the window
+                .id(egui::Id::new("pre_operative")) 
                 .resizable(true)
                 .constrain(true)
                 .collapsible(true)
@@ -327,11 +317,12 @@ impl App for FrontdeskApp {
                         if ui.button("help").clicked() {
                             
                         }
-                        //if let Some(_) = self.central_panel_window_show.supports_scope(CentralWindowEnum::PreOperative) {
-                        //    if ui.button("back").clicked() {
-                        //        self.central_panel_window_show.unsupport_scope(CentralWindowEnum::PreOperative);
-                        //    }
-                        //}
+                        if !self.central_panel_window_show.is_root_state(CentralWindowEnum::PreOperative) {
+                            if ui.button("back").clicked() {
+                                println!("backedd");
+                                self.central_panel_window_show.remove_last(CentralWindowEnum::PreOperative);
+                            }
+                        }    
                     });
                     let mut option_data = self.central_panel_window_show.display_last(CentralWindowEnum::PreOperative);
                     if let (Some(option_data), Some(data)) = (&mut option_data, &mut self.data) {

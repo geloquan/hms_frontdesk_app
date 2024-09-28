@@ -1,0 +1,23 @@
+select 
+    op.id,
+    	op.label as label,
+    CONCAT(p.first_name, ' ', p.last_name) AS patient_full_name,
+    	op.status as status,
+    r.name as room_name,
+    COUNT(ot.id) as total_tools,
+    SUM(CASE WHEN ot.on_site = true THEN 1 ELSE 0 END) as on_site_tools,
+    (SUM(CASE WHEN ot.on_site = true THEN 1 ELSE 0 END) / COUNT(ot.id)) as on_site_ratio,
+    ((SUM(CASE WHEN ot.on_site = true THEN 1 ELSE 0 END) / COUNT(ot.id)) * 100) as on_site_percentage,
+    	DATE_FORMAT(op.start_time, '%Y-%m-%d %H:%i:%s') as start_time,
+    	DATE_FORMAT(op.end_time, '%Y-%m-%d %H:%i:%s') as end_time
+from 
+    operation op
+left join 
+	patient p on op.patient_id = p.id
+left join 
+	room r on op.room_id = r.id
+LEFT JOIN 
+    operationtool ot ON op.id = ot.operation_id
+where op.status = 'pre-operative'
+GROUP BY 
+    op.id, r.name

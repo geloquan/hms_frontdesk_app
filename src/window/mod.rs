@@ -1,4 +1,4 @@
-use crate::{database, table::query_return::{self, *}};
+use crate::{database::{self, table}, table::query_return::{self, *}};
 #[derive(Debug)]
 pub enum CentralWindowEnum {
     InProgress,
@@ -34,27 +34,22 @@ impl CentralWindow {
         }
         window_table
     }
-    fn remove_innermost_child(child: &mut Box<TableTree>) {
-        if let Some(ref mut child) = child.child {
-            if child.child.is_some() {
-                CentralWindow::remove_innermost_child(child);
+    fn remove_innermost_child(child: &mut Option<Box<TableTree>>) {
+        if let Some(ref mut child_boxed) = child {
+            if let Some(ref mut next_child) = child_boxed.child {
+                CentralWindow::remove_innermost_child(&mut child_boxed.child);
             } else {
-                child.child = None;
+                *child = None;
             }
         }
     }
+    
     pub fn remove_last(&mut self, central_window_enum: CentralWindowEnum) {
         match central_window_enum {
             CentralWindowEnum::InProgress => todo!(),
             CentralWindowEnum::PreOperative => {
                 if let Some(holder) = &mut self.pre_operative.tree {
-                    if let Some(ref mut child) = holder.child {
-                        if child.child.is_some() {
-                            CentralWindow::remove_innermost_child(child);
-                        } else {
-                            child.child = None;
-                        }
-                    }
+                    CentralWindow::remove_innermost_child(&mut holder.child); 
                 }
             },
         }
@@ -106,6 +101,24 @@ impl CentralWindow {
                     data: window_table,
                     child: None
                 });
+            },
+        }
+    }
+    pub fn is_root_state(&self, central_window_enum: CentralWindowEnum) -> bool {
+        match central_window_enum {
+            CentralWindowEnum::InProgress => {
+                false
+            },
+            CentralWindowEnum::PreOperative => {
+                if let Some(tree) = &self.pre_operative.tree {
+                    if tree.child.is_none() {
+                        true
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
             },
         }
     }
