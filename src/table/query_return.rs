@@ -31,8 +31,6 @@ pub struct PreOperativeDefault {
     pub start_time: String,
     pub end_time: String
 }
-impl PreOperativeDefault {
-}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PreOperativeToolReady {
     pub equipment_name: String,

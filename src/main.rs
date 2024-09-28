@@ -154,6 +154,7 @@ impl App for FrontdeskApp {
                     
                 },
                 ewebsock::WsEvent::Message(text) => {
+                    println!("text: {:?}", text);
                     match text {
                         ewebsock::WsMessage::Binary(vec) => todo!(),
                         ewebsock::WsMessage::Text(text) => {
