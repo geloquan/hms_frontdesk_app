@@ -19,6 +19,7 @@ impl BuildTable for TableData {
             .column(Column::auto().resizable(false))
             .column(Column::auto().resizable(false))
             .column(Column::auto().resizable(false))
+            .striped(true)
             .header(20.0, |mut header| {
                 let headings = [
                     "LABEL",
@@ -81,13 +82,6 @@ impl BuildTable for TableData {
                             }
                         });
                     });
-                    body.row(0.0, |mut row| {
-                        for _ in 0..6 {
-                            row.col(|ui| {
-                                ui.separator();
-                            });
-                        }
-                    });
                 }
             });
             tbl
@@ -96,6 +90,7 @@ impl BuildTable for TableData {
             .column(Column::auto().resizable(false))
             .column(Column::auto().resizable(false))
             .column(Column::auto().resizable(false))
+            .striped(true)
             .header(20.0, |mut header| {
                 let headings = ["equipment name", "equipment on site", "tool status"];
                 for title in headings {
@@ -123,13 +118,6 @@ impl BuildTable for TableData {
                         row.col(|ui| {
                             ui.add(Label::new(content.tool_status.clone().to_string()));
                         });
-                    });
-                    body.row(0.0, |mut row| {
-                        for _ in 0..3 {
-                            row.col(|ui| {
-                                ui.separator();
-                            });
-                        }
                     });
                 }
             });

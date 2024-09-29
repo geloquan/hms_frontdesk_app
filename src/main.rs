@@ -5,6 +5,8 @@ use table::{
     query_return::{self, WindowTable::{self, *}}, BuildTable, Query, TableData::{self}
 };
 mod window;
+mod ws;
+use ws::receive::*;
 
 use chrono::{DateTime, Datelike, NaiveDateTime, Timelike, Utc};
 use window::{*};
@@ -20,36 +22,6 @@ struct SendMessage {
     level: String,
     method: String,
     data: Option<serde_json::Value>,
-}
-#[derive(Deserialize, Debug, Serialize)]
-#[serde(rename_all = "lowercase")]
-enum DatabaseTable {
-    Equipment,
-    Room,
-    Tool,
-    Staff,
-    ToolReservation,
-    ToolDesignatedRoom,
-    ToolInspector,
-    Patient,
-    Operation,
-    PatientWardRoom,
-    PatientWardAssistant,
-    OperationStaff,
-    OperationTool
-}
-#[derive(Deserialize, Debug, Serialize)]
-#[serde(rename_all = "lowercase")]
-enum Operation {
-    Initialize,
-    Update
-}
-#[derive(Deserialize, Debug, Serialize)]
-struct ReceiveMessage {
-    table_name: DatabaseTable,
-    operation: Operation,
-    status_code: String,
-    data: String,
 }
 
 struct FrontdeskApp {
@@ -172,10 +144,10 @@ impl App for FrontdeskApp {
                                         },
                                         Operation::Update => {
                                             if let Some(data) = &self.data {
-                                                data.update(message.data, DatabaseTable::Equipment)
+                                                data.update(message.data, TableTarget::Equipment)
                                             } else {
                                                 let new_table_data = TableData::new();
-                                                new_table_data.update(message.data, DatabaseTable::Equipment);
+                                                new_table_data.update(message.data, TableTarget::Equipment);
                                                 self.data = Some(new_table_data);
                                             }
                                         },

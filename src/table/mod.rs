@@ -14,7 +14,7 @@ pub mod query_return;
 pub use build::BuildTable;
 pub use query::Query;
 
-use crate::{database::{self, table::{self, *}}, date_code, format_date, window::{self, *}, DatabaseTable};
+use crate::{database::{self, table::{self, *}}, date_code, format_date, window::{self, *}, TableTarget};
 
 #[derive(Deserialize, Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -104,7 +104,7 @@ impl TableData {
         self.operation_staff = Arc::new(RwLock::new(raw_table.operation_staff.clone()));
         self.operation_tool = Arc::new(RwLock::new(raw_table.operation_tool.clone()));
     }
-    pub fn update(&self, raw_string: String, database_table: DatabaseTable) {
+    pub fn update(&self, raw_string: String, database_table: TableTarget) {
         match serde_json::from_str::<UpdateEquipmentRow>(&raw_string) {
             Ok(update_table_data) => {
                 let mut rows = self.equipment.write().unwrap();
