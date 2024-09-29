@@ -48,7 +48,11 @@ pub struct RawTable {
     pub patient_ward_room: Vec<PatientWardRoom>,   
     pub patient_ward_assistant: Vec<PatientWardAssistant>, 
     pub operation_staff: Vec<OperationStaff>,       
-    pub operation_tool: Vec<OperationTool>,         
+    pub operation_tool: Vec<OperationTool>,
+    pub alert: Vec<Alert>,
+    pub frontdesk: Vec<OperationStaff>,
+    pub alert_frontdesk: Vec<OperationStaff>,
+    pub alert_staff: Vec<OperationStaff>   
 }
 #[derive(Debug, Clone)]
 pub struct TableData {

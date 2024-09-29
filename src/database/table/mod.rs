@@ -46,6 +46,23 @@ pub enum StaffRole {
     Maintenance,
 }
 
+#[derive(Clone, Debug, PartialEq, PartialOrd, Deserialize, Serialize)]
+pub enum AlertCategory {
+    ToolReplacement,
+    ToolRequest,
+    EquipmentReplacement,
+    EquipmentRequest,
+    StaffReplacement,
+    StaffRequest
+}
+#[derive(Clone, Debug, PartialEq, PartialOrd, Deserialize, Serialize)]
+pub enum AlertNotificationStatus {
+    Delivered,
+    Viewed,
+    ActionTaken,
+    Resolved
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Equipment {
     pub id: Option<i32>,
@@ -152,4 +169,33 @@ pub struct OperationTool {
     pub operation_id: Option<i32>,
     pub tool_id: Option<i32>,
     pub on_site: Option<i8>, // Use Option<bool> for tinyint (0/1)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Alert {
+    pub id: Option<i32>,
+    pub category: Option<AlertCategory>,
+    pub operation_id: Option<i32>,
+    pub submitted_staff_id: Option<i32>,
+    pub notification_status: Option<AlertNotificationStatus>
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Frontdesk {
+    pub id: Option<i32>,
+    pub name: Option<String>,
+    pub password: Option<String>,
+    pub address_label: Option<String>,
+    pub session_token: Option<String>
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AlertFrontdesk {
+    pub id: Option<i32>,
+    pub frontdesk_id: Option<i32>,
+    pub alert_id: Option<i32>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AlertStaff {
+    pub id: Option<i32>,
+    pub staff_id: Option<i32>,
+    pub alert_id: Option<i32>,
 }
