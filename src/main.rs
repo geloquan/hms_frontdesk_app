@@ -8,6 +8,9 @@ mod window;
 mod ws;
 use ws::receive::*;
 
+pub mod cipher;
+use cipher::{decrypt_message, generate_fixed_key, EncryptedText};
+
 use chrono::{DateTime, Datelike, NaiveDateTime, Timelike, Utc};
 use window::{*};
 use eframe::{egui, App, Frame};
@@ -130,27 +133,33 @@ impl App for FrontdeskApp {
                     match text {
                         ewebsock::WsMessage::Binary(vec) => todo!(),
                         ewebsock::WsMessage::Text(text) => {
-                            match serde_json::from_str::<ReceiveMessage>(&text) {
-                                Ok(message) => {
-                                    match message.operation {
-                                        Operation::Initialize => {
-                                            if let Some(data) = &mut self.data {
-                                                data.initialize(message.data);
-                                            } else {
-                                                let mut new_table_data = TableData::new();
-                                                new_table_data.initialize(message.data);
-                                                self.data = Some(new_table_data);
+                            println!("text: {:?}", text);
+                            match serde_json::from_str::<EncryptedText>(&text) {
+                                Ok(encrypted_text) => {
+                                    if let Ok(key) = &generate_fixed_key() {
+                                        if let Ok(decrypted_text) = decrypt_message(key, &encrypted_text.nonce, &encrypted_text.cipher_text) {
+                                            match serde_json::from_str::<ReceiveMessage>(&decrypted_text) {
+                                                Ok(message) => {
+                                                    println!("message: {:?}", message);
+                                                    match message.operation {
+                                                        Operation::Initialize => {
+                                                            if let Some(data) = &mut self.data {
+                                                                data.initialize(message.data);
+                                                            } else {
+                                                                let mut new_table_data = TableData::new();
+                                                                new_table_data.initialize(message.data);
+                                                                self.data = Some(new_table_data);
+                                                                println!("self.data: {:?}", self.data);
+                                                            }
+                                                        },
+                                                        Operation::Update => {},
+                                                    }
+                                                },
+                                                Err(_) => {
+                                                    println!("err parsing: ReceiveMessage");
+                                                },
                                             }
-                                        },
-                                        Operation::Update => {
-                                            if let Some(data) = &self.data {
-                                                data.update(message.data, TableTarget::Equipment)
-                                            } else {
-                                                let new_table_data = TableData::new();
-                                                new_table_data.update(message.data, TableTarget::Equipment);
-                                                self.data = Some(new_table_data);
-                                            }
-                                        },
+                                        }
                                     }
                                 },
                                 Err(_) => {
