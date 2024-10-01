@@ -97,8 +97,8 @@ impl FrontdeskApp {
         let (mut sender, receiver) = ewebsock::connect("ws://127.0.0.15:8080", options).unwrap();
 
         let request_json = serde_json::to_string(&SendMessage {
-            level: "frontdesk".to_string(),
-            method: "initial".to_string(),
+            level: "Frontdesk".to_string(),
+            method: "Initial".to_string(),
             data: Some(json!({"content": "Hello from button('Send Message')!"})),
         }).unwrap();
         sender.send(ewebsock::WsMessage::Text(request_json));
@@ -177,8 +177,8 @@ impl App for FrontdeskApp {
                     let (mut sender, receiver) = ewebsock::connect("ws://127.0.0.15:8080", options).unwrap();
                     
                     let request_json = serde_json::to_string(&SendMessage {
-                        level: "frontdesk".to_string(),
-                        method: "initial".to_string(),
+                        level: "Frontdesk".to_string(),
+                        method: "Initial".to_string(),
                         data: Some(json!({"content": "Hello from button('Send Message')!"})),
                     }).unwrap();
                     sender.send(ewebsock::WsMessage::Text(request_json));
