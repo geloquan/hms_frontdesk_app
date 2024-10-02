@@ -213,7 +213,12 @@ impl App for FrontdeskApp {
             );
 
             if ui.button("Send Message").clicked() {
-                println!("button clicked");
+                let request_json = serde_json::to_string(&SendMessage {
+                    level: "Frontdesk".to_string(),
+                    method: "Alert".to_string(),
+                    data: None,
+                }).unwrap();
+                self.sender.send(ewebsock::WsMessage::Text(request_json));
             }
         });
         egui::TopBottomPanel::top("my_panel").show(ctx, |ui| {
